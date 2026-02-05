@@ -1543,14 +1543,20 @@ chg_stk_columns = ['RESULT', 'DOCNAME', 'BUNAME', 'PRNDATE', 'CNTNUM', 'CNTNAME'
                 'SUBDEPTNAME', 'SKU', 'SBC', 'IBC', 'BNDCODE', 'BNDNAME', 'PRNAME', 'PRMODEL',
                 'SOH', 'CNTQNT', 'VARIANCEQNT', 'VARIANCEPERC', 'EXTPHYCNT_RETAIL',
                 'EXTPHYCNT_COST', 'EXTPHY_RETAILVAR', 'EXTPHY_COSTVAR', 'EXTPHYCNT_RETAIL_EXVAT', 'GMPERC']
+
 chg_stk_dtype_decimal_map = {
     'SOH': Decimal, 'CNTQNT': Decimal, 'VARIANCEQNT': Decimal, 'VARIANCEPERC': Decimal,
     'EXTPHYCNT_RETAIL': Decimal, 'EXTPHYCNT_COST': Decimal, 'EXTPHY_RETAILVAR': Decimal,
     'EXTPHY_COSTVAR': Decimal, 'EXTPHYCNT_RETAIL_EXVAT': Decimal, 'GMPERC': Decimal
 }
 
+chg_no_zero_count_columns = ['BUName', 'RepName', 'PrintDate', 'SKU', 'IBC', 'SBC', 'รายละเอียด', 'ยี่ห้อ',
+                             'รุ่น', 'Cnt', 'Variance', 'Location', 'Total', 'Dept']
+            
+chg_no_zero_count_dtype_decimal_map = {'Cnt': Decimal, 'Variance': Decimal, 'Total': Decimal}
+
 b2s_stk_columns = ['RESULT', 'DOCNAME', 'BUNAME', 'PRNDATE', 'CNTNUM', 'CNTNAME', 'STMERCH']
-b2s_dtype_decimal_map = {
+b2s_stk_dtype_decimal_map = {
     'SOH': Decimal, 'CNTQNT': Decimal, 'VARIANCEQNT': Decimal, 'VARIANCEPERC': Decimal,
     'EXTPHYCNT_RETAIL': Decimal, 'EXTPHYCNT_COST': Decimal, 'EXTPHY_RETAILVAR': Decimal,
     'EXTPHY_COSTVAR': Decimal, 'EXTPHYCNT_RETAIL_EXVAT': Decimal, 'GMPERC': Decimal
@@ -1588,77 +1594,45 @@ def upload_stk(rpname, skutype):
     """Upload STK from Excel file"""
     if 'username' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
-
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
-
-    if 'bu' not in request.form:
-        return jsonify({'error': 'BU is required in form data'}), 400
-
-    if 'stcode' not in request.form:
-        return jsonify({'error': 'STCODE is required in form data'}), 400
-
-    if 'cntdate' not in request.form:
-        return jsonify({'error': 'CNTDATE is required in form data'}), 400
-
-    if 'stocktakeid' not in request.form:
-        return jsonify({'error': 'STOCKTAKEID is required in form data'}), 400
-
-    if 'rpname' not in request.form:
-        return jsonify({'error': 'RPNAME is required in form data'}), 400
-
-    if 'skutype' not in request.form:
-        return jsonify({'error': 'SKUTYPE is required in form data'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
     
     engine = get_sqlalchemy_engine_pstdb3()
 
+    file = request.files['file']
+
+    '''
+        elif request.form.get('rpname', '').strip() in ['VAR1', 'VAR2']:
+        rpname = 'var'
+    '''
+    # =======================================Process STK upload==========================================
     if request.form.get('rpname', '').strip() in ['STK1', 'STK2']:
         rpname = 'stk'
-    elif request.form.get('rpname', '').strip() in ['VAR1', 'VAR2']:
-        rpname = 'var'
+        table_name = f"{request.form.get('bu', '').strip().lower()}_{rpname}_this_year"
 
-    table_name = f"{request.form.get('bu', '').strip().lower()}_{rpname}_this_year"
-
-    sql = text("""
-    SELECT column_name
-    FROM information_schema.columns
-    WHERE table_name = :table
-    ORDER BY ordinal_position
-    """)
-
-    with engine.connect() as conn:
-        db_columns = [row[0] for row in conn.execute(sql, {'table': table_name})]
-
-
-
-    # ✅ เพิ่มการตรวจสอบนามสกุลไฟล์
-    allowed_extensions = {'.xlsx', '.xls'}
-    file_ext = os.path.splitext(file.filename)[1].lower()
-    if file_ext not in allowed_extensions:
-        return jsonify({'error': 'Only Excel files (.xlsx, .xls) are allowed'}), 400
-    
-    try:
-        username = session['username']
-        cntdate = request.form.get('cntdate', '').strip()
-        cntdate_dt = pd.to_datetime(cntdate)
-        cntdate_text = cntdate_dt.strftime('%Y%m%d')
-
+        sql = text("""
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = :table
+        ORDER BY ordinal_position
+        """)
+        with engine.connect() as conn:
+            db_columns = [row[0] for row in conn.execute(sql, {'table': table_name})]
         
-        # Read Excel file
-        df = pd.read_excel(file, sheet_name='Sheet1',dtype=str)
+        try:
+            username = session['username']
+            cntdate = request.form.get('cntdate', '').strip()
+            cntdate_dt = pd.to_datetime(cntdate)
+            cntdate_text = cntdate_dt.strftime('%Y%m%d')
 
-        if rpname == 'stk':
+            # Read Excel file
+            df = pd.read_excel(file, sheet_name='Sheet1',dtype=str)
+
             # ตรวจสอบ columns ที่จำเป็น
             if request.form.get('bu', '').strip() == 'CHG':
                 required_columns = chg_stk_columns
                 dtype_map = chg_stk_dtype_decimal_map
             elif request.form.get('bu', '').strip() == 'B2S':
                 required_columns = b2s_stk_columns
-                dtype_map = b2s_dtype_decimal_map
+                dtype_map = b2s_stk_dtype_decimal_map
         
             missing_columns = [col for col in required_columns if col not in df.columns]
 
@@ -1668,7 +1642,7 @@ def upload_stk(rpname, skutype):
                 }), 400
             
             df.columns = df.columns.str.lower()
-            
+
             # Convert specified columns to Decimal
             for col, col_type in dtype_map.items():
                 if col_type == Decimal:
@@ -1693,7 +1667,7 @@ def upload_stk(rpname, skutype):
 
             if df.empty:
                 return jsonify({'error': 'Excel file is empty'}), 400
-
+    
             # check old data
             check_query = text(f"""
                 SELECT distinct stocktakeid
@@ -1707,7 +1681,7 @@ def upload_stk(rpname, skutype):
                                             'cntdate': cntdate_text,
                                             'skutype': request.form.get('skutype', '').strip(),
                                             'rpname': request.form.get('rpname', '').strip()})
-
+            
             if not df_check.empty:
                 # Delete existing data for these stocktakeids
                 delete_query = text(f"""
@@ -1731,17 +1705,17 @@ def upload_stk(rpname, skutype):
             for c in db_columns:
                 if c not in df.columns:
                     df[c] = None
-
+            
             # Ensure the DataFrame columns are in the same order as the database table
             df = df[db_columns]
 
             # Replace NaN with None for SQL insertion
             df = df.where(df.notnull(), None)
-
+            
             buffer = io.StringIO()
 
             df.to_csv(buffer, index=False, header=False,
-                      sep='|')
+                    sep='|')
             buffer.seek(0)
 
             conn = engine.raw_connection()
@@ -1757,7 +1731,7 @@ def upload_stk(rpname, skutype):
                 df['soh_amount'] = df['extphycnt_cost'] - df['extphy_costvar']
             elif request.form.get('bu', '').strip() == 'B2S' and request.form.get('rpname', '').strip() == 'STK2':
                 df['soh_amount'] = df['extphycnt_retail_exvat'] - df['extphy_retailvar']
-
+            
             if request.form.get('rpname', '').strip() == 'STK2':
                 with engine.begin() as conn:
                     # Update GMPERC to 0 where it is NULL
@@ -1794,22 +1768,170 @@ def upload_stk(rpname, skutype):
                     vloss=('extphy_costvar', lambda x: x[x < 0].sum()))
                 
                 df_stocktake.to_sql('stk_report', engine, if_exists='append', index=False)
-            
-            
+                
             return jsonify({
                 'success':  True,
                 'message':  f'อัพโหลด stocktakeid: {request.form.get("stocktakeid", "").strip()}'
                             f'สำเร็จ จำนวน {len(df):,} รายการ'
             })
+        except Exception as e:
+            return jsonify({'error': f'Internal server error: {str(e)}'}), 500
         
-        elif rpname == 'var':
+    elif request.form.get('rpname', '').strip() in ['VAR1', 'VAR2']:
+        rpname = 'var'
+        table_name = f"{request.form.get('bu', '').strip().lower()}_{rpname}_this_year"
+        sql = text("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = :table
+            ORDER BY ordinal_position
+        """)
+        with engine.connect() as conn:
+            db_columns = [row[0] for row in conn.execute(sql, {'table': table_name})]
+            username = session['username']
+            cntdate = request.form.get('cntdate', '').strip()
+            cntdate_dt = pd.to_datetime(cntdate)
+            cntdate_text = cntdate_dt.strftime('%Y%m%d')
+        # Read Excel file
+        df = pd.read_excel(file, sheet_name='Sheet1',dtype=str)
+
+        # ตรวจสอบ columns ที่จำเป็น
+        if request.form.get('bu', '').strip() == 'CHG':
+            required_columns = chg_var_columns
+            dtype_map = chg_var_dtype_decimal_map
+        elif request.form.get('bu', '').strip() == 'B2S':
+            required_columns = b2s_var_columns
+            dtype_map = b2s_var_dtype_decimal_map
+    
+        missing_columns = [col for col in required_columns if col not in df.columns]
+
+        if missing_columns:
+            return jsonify({
+                'error': f'Excel file is missing required columns: {", ".join(missing_columns)}'
+            }), 400
+        
+        df.columns = df.columns.str.lower()
+        
+        # Convert specified columns to Decimal
+        for col, col_type in dtype_map.items():
+            col_name = col.lower()
+            if col_type == Decimal:
+                # แปลง str → Decimal, remove comma, strip space, 3 ตำแหน่ง
+                df[col_name] = pd.to_numeric(df[col_name].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
+                df[col_name] = df[col_name].apply(lambda x: round(Decimal(str(x)), 3))
+
+        df['skutype'] = request.form.get('skutype', '').strip()
+        df['rpname'] = request.form.get('rpname', '').strip()
+        df['bu'] = request.form.get('bu', '').strip()
+        df['stcode'] = request.form.get('stcode', '').strip()
+        df['username'] = username
+        df['stocktakeid'] = request.form.get('stocktakeid', '').strip()
+        if 'cntdate' not in df.columns:
+            df['cntdate'] = cntdate_text
+
+    
+        if request.form.get('bu', '').strip() == 'CHG':
+            df = df[df['cntnum'].str[:5] == df['stcode'].values]
+
+        elif request.form.get('bu', '').strip() == 'B2S':
+            df = df[df['store'] == df['stcode'].values]
+
+        if df.empty:
+            return jsonify({'error': 'Excel file is empty'}), 400
+
+        # check old data
+        check_query = text(f"""
+            SELECT distinct stocktakeid
+            FROM {table_name}
+            where stcode = :stcode
+                and cntdate = :cntdate
+                and skutype = :skutype
+                and rpname = :rpname""")
+        df_check = pd.read_sql(check_query, engine,
+                            params={'stcode': request.form.get('stcode', '').strip(),
+                                        'cntdate': cntdate_text,
+                                        'skutype': request.form.get('skutype', '').strip(),
+                                        'rpname': request.form.get('rpname', '').strip()})
+
+        if not df_check.empty:
+            # Delete existing data for these stocktakeids
+            delete_query = text(f"""
+                DELETE FROM {table_name}
+                where stcode = :stcode
+                    and cntdate = :cntdate
+                    and skutype = :skutype
+                    and rpname = :rpname""")
+            with engine.connect() as conn:
+                conn.execute(delete_query, {'stcode': request.form.get('stcode', '').strip(),
+                                            'cntdate': cntdate_text,
+                                            'skutype': request.form.get('skutype', '').strip(),
+                                            'rpname': request.form.get('rpname', '').strip()})
+                print('Deleted old STK data')
+                conn.commit()
+                
+        # Reorder columns to match database table
+        df = df[[c for c in db_columns if c in df.columns]]
+
+        # Add missing columns with None values
+        for c in db_columns:
+            if c not in df.columns:
+                df[c] = None
+
+        # Ensure the DataFrame columns are in the same order as the database table
+        df = df[db_columns]
+
+        # Replace NaN with None for SQL insertion
+        df = df.where(df.notnull(), None)
+
+        buffer = io.StringIO()
+
+        df.to_csv(buffer, index=False, header=False,
+                sep='|')
+        buffer.seek(0)
+
+        conn = engine.raw_connection()
+        cur = conn.cursor()
+
+        cur.copy_from(buffer, table_name, sep='|',columns=db_columns)
+
+        conn.commit()
+        cur.close()
+        conn.close()
+                    
+        return jsonify({
+            'success':  True,
+            'message':  f'อัพโหลด stocktakeid: {request.form.get("stocktakeid", "").strip()}'
+                        f'สำเร็จ จำนวน {len(df):,} รายการ'
+        })
+    elif request.form.get('rpname', '').strip() in ['NOC2','ZEC2']:
+        if request.form.get('rpname', '').strip() == 'NOC2':
+            rpname = 'nocount'
+        else:
+            rpname = 'zerocount'
+
+        table_name = f"{request.form.get('bu', '').strip().lower()}_{rpname}_this_year"
+
+        sql = text("""
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = :table
+        ORDER BY ordinal_position
+        """)
+        with engine.connect() as conn:
+            db_columns = [row[0] for row in conn.execute(sql, {'table': table_name})]
+        
+        try:
+            username = session['username']
+            cntdate = request.form.get('cntdate', '').strip()
+            cntdate_dt = pd.to_datetime(cntdate)
+            cntdate_text = cntdate_dt.strftime('%Y%m%d')
+
+            # Read Excel file
+            df = pd.read_excel(file, sheet_name='Sheet1',dtype=str)
+
             # ตรวจสอบ columns ที่จำเป็น
-            if request.form.get('bu', '').strip() == 'CHG':
-                required_columns = chg_var_columns
-                dtype_map = chg_var_dtype_decimal_map
-            elif request.form.get('bu', '').strip() == 'B2S':
-                required_columns = b2s_var_columns
-                dtype_map = b2s_var_dtype_decimal_map
+            required_columns = chg_no_zero_count_columns
+            dtype_map = chg_no_zero_count_dtype_decimal_map
         
             missing_columns = [col for col in required_columns if col not in df.columns]
 
@@ -1822,11 +1944,11 @@ def upload_stk(rpname, skutype):
             
             # Convert specified columns to Decimal
             for col, col_type in dtype_map.items():
-                col_name = col.lower()
                 if col_type == Decimal:
                     # แปลง str → Decimal, remove comma, strip space, 3 ตำแหน่ง
-                    df[col_name] = pd.to_numeric(df[col_name].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
-                    df[col_name] = df[col_name].apply(lambda x: round(Decimal(str(x)), 3))
+                    df[col.lower()] = df[col.lower()].astype(str).str.replace(',', '').str.strip()
+                    df[col.lower()] = df[col.lower()].replace('', '0')
+                    df[col.lower()] = df[col.lower()].apply(lambda x: round(Decimal(x), 3))
 
             df['skutype'] = request.form.get('skutype', '').strip()
             df['rpname'] = request.form.get('rpname', '').strip()
@@ -1836,13 +1958,11 @@ def upload_stk(rpname, skutype):
             df['stocktakeid'] = request.form.get('stocktakeid', '').strip()
             if 'cntdate' not in df.columns:
                 df['cntdate'] = cntdate_text
+            df['prname'] = df['รายละเอียด']
+            df['bndname'] = df['ยี่ห้อ']
+            df['model'] = df['รุ่น']
 
-        
-            if request.form.get('bu', '').strip() == 'CHG':
-                df = df[df['cntnum'].str[:5] == df['stcode'].values]
-
-            elif request.form.get('bu', '').strip() == 'B2S':
-                df = df[df['store'] == df['stcode'].values]
+            df.drop(columns=['รายละเอียด', 'ยี่ห้อ', 'รุ่น'], inplace=True)
 
             if df.empty:
                 return jsonify({'error': 'Excel file is empty'}), 400
@@ -1876,7 +1996,7 @@ def upload_stk(rpname, skutype):
                                                 'rpname': request.form.get('rpname', '').strip()})
                     print('Deleted old STK data')
                     conn.commit()
-                    
+            
             # Reorder columns to match database table
             df = df[[c for c in db_columns if c in df.columns]]
 
@@ -1891,12 +2011,10 @@ def upload_stk(rpname, skutype):
             # Replace NaN with None for SQL insertion
             df = df.where(df.notnull(), None)
 
-            
-
             buffer = io.StringIO()
 
             df.to_csv(buffer, index=False, header=False,
-                      sep='|')
+                    sep='|')
             buffer.seek(0)
 
             conn = engine.raw_connection()
@@ -1907,19 +2025,20 @@ def upload_stk(rpname, skutype):
             conn.commit()
             cur.close()
             conn.close()
-                        
             return jsonify({
                 'success':  True,
                 'message':  f'อัพโหลด stocktakeid: {request.form.get("stocktakeid", "").strip()}'
                             f'สำเร็จ จำนวน {len(df):,} รายการ'
             })
-        else:
-            return jsonify({'error': 'Invalid RPNAME provided'}), 400
+        except Exception as e:
+            return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+ 
 
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+
+    
+@app.route('/api/upload_files_final/no_count', methods=['POST'])
+@login_required
+
 
 # ✅ เพิ่ม Error Handlers
 @app.errorhandler(413)

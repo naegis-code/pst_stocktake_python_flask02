@@ -97,15 +97,26 @@ function upload_files_final(contentArea) {
         </td>
         <td><input type="text" id="var2_status" readonly></td>
         <td><input type="text" id="var2_details" readonly></td>
-      <tr>
       </tr>
-        <td>No & Zero Count:</td>
+      <tr>
+        <td>No Count:</td>
         <td>
-          <button onclick="#">NO COUNT</button>
-          <button onclick="#">ZERO COUNT</button>
+          <button onclick="uploadFileExcel('NOC2', 'Credit', 'NO COUNT Credit uploaded successfully')">NO COUNT Credit</button>
+          <button onclick="uploadFileExcel('NOC2', 'Consign', 'NO COUNT Consign uploaded successfully')">NO COUNT Consign</button>
+          <button onclick="uploadFileExcel('NOC2', 'Paint', 'NO COUNT Paint uploaded successfully')">NO COUNT Paint</button>
         </td>
-        <td><input type="text" id="no_zero_count_status" readonly></td>
-        <td><input type="text" id="no_zero_count_details" readonly></td>
+        <td><input type="text" id="no_count_status" readonly></td>
+        <td><input type="text" id="no_count_details" readonly></td>
+      </tr>
+      <tr>
+        <td>Zero Count:</td>
+        <td>
+          <button onclick="uploadFileExcel('ZEC2', 'Credit', 'ZERO COUNT Credit uploaded successfully')">ZERO COUNT Credit</button>
+          <button onclick="uploadFileExcel('ZEC2', 'Consign', 'ZERO COUNT Consign uploaded successfully')">ZERO COUNT Consign</button>
+          <button onclick="uploadFileExcel('ZEC2', 'Paint', 'ZERO COUNT Paint uploaded successfully')">ZERO COUNT Paint</button>
+        </td>
+        <td><input type="text" id="zero_count_status" readonly></td>
+        <td><input type="text" id="zero_count_details" readonly></td>
       </tr>
       <tr>
         <td>SALE File :</td>
