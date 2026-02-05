@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Count Number - PST POOLED STOCKTAKE TEAM</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/style.css') }}">
+    <!-- SweetAlert2 for better alerts -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h2>Manage</h2>
+        <ul>
+            <li><a href="{{ url_for('home') }}">Home</a></li>
+            <li><a href="#">Annualplan</a></li>
+            <li><a href="#">Timesheet</a></li>
+        </ul>  
+        <h2>Stocktake</h2>
+        <ul>  
+            <li><a href="{{ url_for('home') }}" class="menu-btn">B2S - Book to Stationery</a></li>
+            <li><a href="#">OFM - Office Mate</a></li>
+            <li><a href="#">SSP - Super Sport</a></li>
+            <li><a href="#">CFR - Central Food Retail</a></li>
+            <li><a href="#">PWB - Power Buy</a></li>
+        </ul>
+    </div>
+
+    <!-- Main Section -->
+    <div class="main">
+        <!-- Header -->
+        <div class="header">
+            <div>Welcome : <span id="username-display">{{ username }}</span></div>
+            <div id="current-time"></div>
+            <div class="Logout">
+                <button id="logoutButton" onclick="window.location.href='{{ url_for('logout') }}'">Logout</button>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="content" id="content-area">
+            <h1>B2S - Book to Stationery</h1>
+            <div class="form-table">
+                <p><strong>Create Count Number For Stocktake</strong></p>
+                <table class="info-table">
+                    <tr>
+                        <td>BU: </td>
+                        <td>
+                            <select id="bu">
+                                <option value="B2S">B2S</option>
+                                <option value="OFM">OFM</option>
+                                <option value="SSP">SSP</option>
+                                <option value="CFR">CFR</option>
+                                <option value="PWB">PWB</option>
+                            </select>
+                        </td>
+                        <td>STCODE:</td>
+                        <td><input type="text" id="stcodeCreate" placeholder="Store Code" /></td>
+                        <td>ATYPE:</td>
+                        <td>
+                            <select id="atype">
+                                <option value="3F">3F</option>
+                                <option value="3Q">3Q</option>
+                            </select>
+                        </td>
+                        <td>CNTDATE:</td>
+                        <td>
+                            <input type="date" id="countDateCreate" onchange="updateDateDisplay()" />
+                            <div id="dateDisplayCreate" style="font-size: 12px; color: #666; margin-top: 4px;"></div>
+                        </td>
+                    </tr>
+                </table>
+                <div class="button-group">
+                    <button onclick="createCNTNUM()" class="success">Create CNTNUM</button>
+                    <button onclick="window.location.href='{{ url_for('home') }}'">Back to Home</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pass Flask variables to JavaScript -->
+    <script>
+        window.APP_CONFIG = {
+            username: '{{ username }}',
+            logoutUrl: '{{ url_for("logout") }}'
+        };
+
+        // Update time display
+        function updateTime() {
+            const now = new Date();
+            const options = { 
+                year: 'numeric', 
+                month: '2-digit', 
+                day: '2-digit',
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit',
+                hour12: false 
+            };
+            const timeElement = document.getElementById('current-time');
+            if (timeElement) {
+                timeElement.textContent = now.toLocaleString('th-TH', options);
+            }
+        }
+        
+        // Start time update
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        // Date display function
+        function updateDateDisplay() {
+            const dateInput = document.getElementById('countDateCreate');
+            const dateDisplay = document.getElementById('dateDisplayCreate');
+            
+            if (dateInput && dateInput.value && dateDisplay) {
+                const date = new Date(dateInput.value);
+                const options = { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                };
+                dateDisplay.textContent = date.toLocaleDateString('th-TH', options);
+            }
+        }
+
+        // Create CNTNUM function
+        async function createCNTNUM() {
+            const bu = document.getElementById('bu')?.value.trim();
+            const stcode = document.getElementById('stcodeCreate')?.value.trim();
+            const atype = document.getElementById('atype')?.value.trim();
+            const cntdate = document.getElementById('countDateCreate')?.value.trim();
+            
+            if (!bu || !stcode || !atype || !cntdate) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'ข้อผิดพลาด',
+                    text: 'กรุณากรอกข้อมูลให้ครบถ้วน',
+                    confirmButtonColor: '#dc3545'
+                });
+                return;
+            }
+            
+            Swal.fire({
+                title: 'กำลังสร้าง CNTNUM...',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            try {
+                const response = await fetch('/api/b2s/create_cntnum', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ bu, stcode, atype, cntdate })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'เกิดข้อผิดพลาด');
+                }
+                
+                Swal.close();
+                
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'สำเร็จ',
+                    text: data.message || 'สร้าง CNTNUM สำเร็จ',
+                    confirmButtonColor: '#27ae60'
+                });
+                
+                // Redirect to home page
+                window.location.href = '{{ url_for("home") }}';
+                
+            } catch (error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'ข้อผิดพลาด',
+                    text: error.message || 'เกิดข้อผิดพลาดในการสร้าง CNTNUM',
+                    confirmButtonColor: '#dc3545'
+                });
+            }
+        }
+    </script>
+</body>
+</html>

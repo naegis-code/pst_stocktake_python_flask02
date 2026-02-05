@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Location Management - PST POOLED STOCKTAKE TEAM</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .management-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .management-table th, .management-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        .management-table th { background-color: #4CAF50; color: white; }
+        .management-table tr:nth-child(even) { background-color: #f2f2f2; }
+        .management-table tr:hover { background-color: #ddd; }
+        .btn-edit { background-color: #2196F3; color: white; padding: 5px 10px; border: none; cursor: pointer; border-radius: 3px; margin-right: 5px; }
+        .btn-delete { background-color: #f44336; color: white; padding: 5px 10px; border: none; cursor: pointer; border-radius: 3px; }
+        .input-group { display: flex; gap: 10px; margin: 20px 0; align-items: center; }
+        .input-group input { padding: 8px; font-size: 14px; }
+        .status-badge { padding: 3px 8px; border-radius: 3px; font-size: 12px; }
+        .status-new { background-color: #4CAF50; color: white; }
+        .status-existing { background-color: #ff9800; color: white; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Manage</h2>
+        <ul>
+            <li><a href="{{ url_for('home') }}">Home</a></li>
+            <li><a href="#">Annualplan</a></li>
+            <li><a href="#">Timesheet</a></li>
+        </ul>  
+        <h2>Stocktake</h2>
+        <ul>  
+            <li><a href="{{ url_for('home') }}" class="menu-btn">B2S - Book to Stationery</a></li>
+            <li><a href="#">OFM - Office Mate</a></li>
+            <li><a href="#">SSP - Super Sport</a></li>
+            <li><a href="#">CFR - Central Food Retail</a></li>
+            <li><a href="#">PWB - Power Buy</a></li>
+        </ul>
+    </div>
+
+    <div class="main">
+        <div class="header">
+            <div>Welcome : <span id="username-display">{{ username }}</span></div>
+            <div id="current-time"></div>
+            <div class="Logout">
+                <button id="logoutButton" onclick="window.location.href='{{ url_for('logout') }}'">Logout</button>
+            </div>
+        </div>
+
+        <div class="content" id="content-area">
+            <h1>Location Management</h1>
+            
+            <div class="form-table">
+                <h3>Add Location Manually</h3>
+                <div class="input-group">
+                    <label>CNTNUM:</label>
+                    <input type="text" id="cntnum" placeholder="CNTNUM" value="{{ cntnum }}" style="width: 200px;">
+                    
+                    <label>Location No:</label>
+                    <input type="text" id="location_no" placeholder="Location Number" style="width: 200px;">
+                    
+                    <button onclick="addLocationToList()" class="success">Add to List</button>
+                    <button onclick="importFileLocations()" class="info">Import from Excel</button>
+                </div>
+
+                <h3>Locations to Add <span id="locationCount">(0 items)</span></h3>
+                <table class="management-table" id="locationTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>CNTNUM</th>
+                            <th>Location No</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="locationTableBody">
+                    </tbody>
+                </table>
+
+                <div class="button-group">
+                    <button onclick="confirmSubmitLocations()" class="success" id="btnSubmit">
+                        Confirm & Submit All (<span id="submitCount">0</span> locations)
+                    </button>
+                    <button onclick="clearAllLocations()" class="danger">Clear All</button>
+                    <button onclick="window.location.href='{{ url_for('home') }}'">Back to Home</button>
+                </div>
+            </div>
+
+            <div class="form-table" style="margin-top: 30px;">
+                <h3>Close Location Manually</h3>
+                <div class="input-group">
+                    <label>CNTNUM:</label>
+                    <input type="text" id="cntnum_close" placeholder="CNTNUM" value="{{ cntnum }}" style="width: 200px;">
+                    
+                    <label>Location No:</label>
+                    <input type="text" id="location_no_close" placeholder="Location Number" style="width: 200px;">
+                    
+                    <button onclick="addCloseLocationToList()" class="danger">Add to Close List</button>
+                    <button onclick="importFileCloseLocations()" class="info">Import from Excel</button>
+                </div>
+
+                <h3>Locations to Close <span id="closeLocationCount">(0 items)</span></h3>
+                <table class="management-table" id="closeLocationTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>CNTNUM</th>
+                            <th>Location No</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="closeLocationTableBody">
+                    </tbody>
+                </table>
+
+                <div class="button-group">
+                    <button onclick="confirmSubmitCloseLocations()" class="danger" id="btnSubmitClose">
+                        Confirm & Close All (<span id="submitCloseCount">0</span> locations)
+                    </button>
+                    <button onclick="clearAllCloseLocations()" class="danger">Clear All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/location_manage.js') }}"></script>
+</body>
+</html>

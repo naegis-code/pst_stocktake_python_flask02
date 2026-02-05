@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PST POOLED STOCKTAKE TEAM</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/style.css') }}">
+  
+  <!-- SweetAlert2 for better alerts -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2>Stocktake</h2>
+    <ul>
+      <li><a href="#" class="menu-btn" data-section="upload_countfiles">Upload Count Files</a></li>  
+      <li><a href="#" class="menu-btn" data-section="b2s">B2S - Book to Stationery</a></li>
+      <li><a href="#" class="menu-btn" data-section="ofm">OFM - Office Mate</a></li>
+      <li><a href="#" class="menu-btn" data-section="ssp">SSP - Super Sport</a></li>
+      <li><a href="#" class="menu-btn" data-section="cfr">CFR - Central Food Retail</a></li>
+      <li><a href="#" class="menu-btn" data-section="pwb">PWB - Power Buy</a></li>
+    </ul>
+    <h2>Reports</h2>
+    <ul>
+      <li><a href="#" class="menu-btn" data-section="upload_files_final">Upload_Files</a></li>
+    </ul>
+    <h2>Manage</h2>
+    <ul>
+      <li><a href="#">Annualplan</a></li>
+      <li><a href="#">Timesheet</a></li>
+    </ul>
+    <h2>Settings</h2>
+    <ul>
+      <li>Welcome :  <span id="username-display-sidebar">{{ username }}</span></li>
+      <li><button class="danger" id="logoutButton">Logout</button></li>  
+    </ul>
+  </div>
+
+  <!-- Content -->
+  <div class="content" id="content-area">
+    <h1>Welcome to PST Pooled Stocktake Team</h1>
+    <p>Please select an option from the sidebar menu. </p>
+  </div>
+
+  <!-- Logout Confirmation Modal -->
+  <div id="logoutModal" class="logout-modal">
+    <div class="logout-modal-content">
+      <h3>🔒 ยืนยันการออกจากระบบ</h3>
+      <p>คุณต้องการออกจากระบบหรือไม่?</p>
+      <div class="logout-modal-buttons">
+        <button class="modal-btn modal-btn-confirm" onclick="confirmLogout()">ยืนยัน</button>
+        <button class="modal-btn modal-btn-cancel" onclick="closeLogoutModal()">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pass Flask variables to JavaScript -->
+  <script>
+    window.APP_CONFIG = {
+      username: '{{ username }}',
+      logoutUrl: '{{ url_for("logout") }}'
+    };
+  </script>
+
+  <!-- Load JavaScript files -->
+  <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/b2s.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/upload_countfiles.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/upload_files_final.js') }}"></script>
+</body>
+</html>
