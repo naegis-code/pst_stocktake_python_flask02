@@ -97,6 +97,15 @@ function upload_files_final(contentArea) {
         </td>
         <td><input type="text" id="var2_status" readonly></td>
         <td><input type="text" id="var2_details" readonly></td>
+      <tr>
+      </tr>
+        <td>No & Zero Count:</td>
+        <td>
+          <button onclick="#">NO COUNT</button>
+          <button onclick="#">ZERO COUNT</button>
+        </td>
+        <td><input type="text" id="no_zero_count_status" readonly></td>
+        <td><input type="text" id="no_zero_count_details" readonly></td>
       </tr>
       <tr>
         <td>SALE File :</td>

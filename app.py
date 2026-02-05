@@ -1646,6 +1646,7 @@ def upload_stk(rpname, skutype):
         cntdate = request.form.get('cntdate', '').strip()
         cntdate_dt = pd.to_datetime(cntdate)
         cntdate_text = cntdate_dt.strftime('%Y%m%d')
+
         
         # Read Excel file
         df = pd.read_excel(file, sheet_name='Sheet1',dtype=str)
@@ -1739,7 +1740,6 @@ def upload_stk(rpname, skutype):
 
             buffer = io.StringIO()
 
-            df = df.iloc[1:]  # skip first row
             df.to_csv(buffer, index=False, header=False,
                       sep='|')
             buffer.seek(0)
@@ -1752,9 +1752,49 @@ def upload_stk(rpname, skutype):
             conn.commit()
             cur.close()
             conn.close()
+
+            if request.form.get('bu', '').strip() == 'CHG' and request.form.get('rpname', '').strip() == 'STK2':
+                df['soh_amount'] = df['extphycnt_cost'] - df['extphy_costvar']
+            elif request.form.get('bu', '').strip() == 'B2S' and request.form.get('rpname', '').strip() == 'STK2':
+                df['soh_amount'] = df['extphycnt_retail_exvat'] - df['extphy_retailvar']
+
+            if request.form.get('rpname', '').strip() == 'STK2':
+                with engine.begin() as conn:
+                    # Update GMPERC to 0 where it is NULL
+                    delete_old = text(f"""
+                        delete from stk_report
+                        WHERE bu = :bu
+                            AND stcode = :stcode
+                            AND cntdate = :cntdate
+                            AND skutype = :skutype
+                            AND rpname = :rpname
+                    """)
+                    conn.execute(delete_old, {
+                        'bu': request.form.get('bu', '').strip(),
+                        'stcode': request.form.get('stcode', '').strip(),
+                        'cntdate': cntdate_text,
+                        'skutype': request.form.get('skutype', '').strip(),
+                        'rpname': request.form.get('rpname', '').strip()
+                    })
+
+
+                df_stocktake = df.groupby(['bu', 'stcode', 'cntdate', 'skutype', 'rpname'], as_index=False).agg(
+                    sku=('sku', 'count'),
+                    # นับจำนวน x:(condition)
+                    sgain=('varianceqnt',lambda x: (x > 0).sum()),
+                    sloss=('varianceqnt', lambda x: (x < 0).sum()),
+                    psoh=('soh', 'sum'),
+                    pqty=('cntqnt', 'sum'),
+                    # รวมจำนวนมูลค่า ต้องมีค่า X: x[condition]
+                    pgain=('varianceqnt', lambda x: x[x > 0].sum()),
+                    ploss=('varianceqnt', lambda x: x[x < 0].sum()),
+                    vsoh=('soh_amount', 'sum'),
+                    vqty=('extphycnt_cost', 'sum'),
+                    vgain=('extphy_costvar', lambda x: x[x > 0].sum()),
+                    vloss=('extphy_costvar', lambda x: x[x < 0].sum()))
+                
+                df_stocktake.to_sql('stk_report', engine, if_exists='append', index=False)
             
-            # Insert new data
-            #df.to_sql(request.form.get('bu', '').strip().lower() + '_stk_this_year', engine, if_exists='append', index=False,method='multi')
             
             return jsonify({
                 'success':  True,
@@ -1855,7 +1895,6 @@ def upload_stk(rpname, skutype):
 
             buffer = io.StringIO()
 
-            df = df.iloc[1:]  # skip first row
             df.to_csv(buffer, index=False, header=False,
                       sep='|')
             buffer.seek(0)
