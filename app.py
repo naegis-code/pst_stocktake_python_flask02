@@ -1728,14 +1728,18 @@ def upload_stk(rpname, skutype):
             conn.close()
 
             if request.form.get('bu', '').strip() == 'CHG' and request.form.get('rpname', '').strip() == 'STK2':
-                df['soh_amount'] = df['extphycnt_cost'] - df['extphy_costvar']
+                df['soh_amount_cost'] = df['extphycnt_cost'] - df['extphy_costvar']
+                df['soh_amount_retail'] = df['extphycnt_retail'] - df['extphy_retailvar']
+                df['dept'] = df['deptcode'] + ' ' + df['deptname']
+                df['subdept'] = df['subdeptcode'] + ' ' + df['subdeptname']
             elif request.form.get('bu', '').strip() == 'B2S' and request.form.get('rpname', '').strip() == 'STK2':
-                df['soh_amount'] = df['extphycnt_retail_exvat'] - df['extphy_retailvar']
+                df['soh_amount_cost'] = df['extphycnt_retail_exvat'] - 0
+                df['soh_amount_retail'] = df['extphycnt_retail'] - 0
             
             if request.form.get('rpname', '').strip() == 'STK2':
                 with engine.begin() as conn:
                     # Update GMPERC to 0 where it is NULL
-                    delete_old = text(f"""
+                    delete_old_stk_report = text(f"""
                         delete from stk_report
                         WHERE bu = :bu
                             AND stcode = :stcode
@@ -1743,13 +1747,25 @@ def upload_stk(rpname, skutype):
                             AND skutype = :skutype
                             AND rpname = :rpname
                     """)
-                    conn.execute(delete_old, {
+
+                    delete_old_stk_report_subdept = text(f"""
+                        delete from stk_report_subdept
+                        WHERE bu = :bu
+                            AND stcode = :stcode
+                            AND cntdate = :cntdate
+                            AND skutype = :skutype
+                            AND rpname = :rpname
+                    """)
+
+                    params = {
                         'bu': request.form.get('bu', '').strip(),
                         'stcode': request.form.get('stcode', '').strip(),
                         'cntdate': cntdate_text,
                         'skutype': request.form.get('skutype', '').strip(),
                         'rpname': request.form.get('rpname', '').strip()
-                    })
+                    }
+                    conn.execute(delete_old_stk_report, params)
+                    conn.execute(delete_old_stk_report_subdept, params)
 
 
                 df_stocktake = df.groupby(['bu', 'stcode', 'cntdate', 'skutype', 'rpname'], as_index=False).agg(
@@ -1762,12 +1778,37 @@ def upload_stk(rpname, skutype):
                     # รวมจำนวนมูลค่า ต้องมีค่า X: x[condition]
                     pgain=('varianceqnt', lambda x: x[x > 0].sum()),
                     ploss=('varianceqnt', lambda x: x[x < 0].sum()),
-                    vsoh=('soh_amount', 'sum'),
+                    vrsoh=('soh_amount_retail', 'sum'),
+                    vsoh=('soh_amount_cost', 'sum'),
+                    vrqty=('extphycnt_retail', 'sum'),
                     vqty=('extphycnt_cost', 'sum'),
+                    vrgain=('extphy_retailvar', lambda x: x[x > 0].sum()),
                     vgain=('extphy_costvar', lambda x: x[x > 0].sum()),
+                    vrloss=('extphy_retailvar', lambda x: x[x < 0].sum()),
                     vloss=('extphy_costvar', lambda x: x[x < 0].sum()))
                 
                 df_stocktake.to_sql('stk_report', engine, if_exists='append', index=False)
+
+                # summary by dept and subdept
+                df_subdept = df.groupby(['bu', 'stcode', 'cntdate', 'skutype', 'rpname','dept','subdept'], as_index=False).agg(
+                    sku=('sku', 'count'),
+                    # นับจำนวน x:(condition)
+                    sgain=('varianceqnt',lambda x: (x > 0).sum()),
+                    sloss=('varianceqnt', lambda x: (x < 0).sum()),
+                    psoh=('soh', 'sum'),
+                    pqty=('cntqnt', 'sum'),
+                    # รวมจำนวนมูลค่า ต้องมีค่า X: x[condition]
+                    pgain=('varianceqnt', lambda x: x[x > 0].sum()),
+                    ploss=('varianceqnt', lambda x: x[x < 0].sum()),
+                    vrsoh=('soh_amount_retail', 'sum'),
+                    vsoh=('soh_amount_cost', 'sum'),
+                    vrqty=('extphycnt_retail', 'sum'),
+                    vqty=('extphycnt_cost', 'sum'),
+                    vrgain=('extphy_retailvar', lambda x: x[x > 0].sum()),
+                    vgain=('extphy_costvar', lambda x: x[x > 0].sum()),
+                    vrloss=('extphy_retailvar', lambda x: x[x < 0].sum()),
+                    vloss=('extphy_costvar', lambda x: x[x < 0].sum()))
+                df_subdept.to_sql('stk_report_subdept', engine, if_exists='append', index=False)
                 
             return jsonify({
                 'success':  True,
