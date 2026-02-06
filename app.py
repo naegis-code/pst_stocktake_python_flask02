@@ -2066,6 +2066,39 @@ def upload_stk(rpname, skutype):
             conn.commit()
             cur.close()
             conn.close()
+
+            # update stk_report for NOC2 and ZEC2
+            df_stocktake = df.groupby(['bu', 'stcode', 'cntdate', 'skutype'], as_index=False).agg(
+                sku=('sku', 'count'))
+            
+            query = text(f"""
+                update stk_report
+                set {rpname} = :sku
+                where bu = :bu
+                    and stcode = :stcode
+                    and cntdate = :cntdate
+                    and skutype = :skutype
+            """)
+            with engine.begin() as conn:
+                for _, row in df_stocktake.iterrows():
+                    conn.execute(query, row.to_dict())
+
+            df_stocktake_subdept = df.groupby(['bu', 'stcode', 'cntdate', 'skutype','dept'], as_index=False).agg(
+                sku=('sku', 'count'))
+            query_subdept = text(f"""
+                update stk_report_subdept
+                set {rpname} = :sku
+                where bu = :bu
+                    and stcode = :stcode
+                    and cntdate = :cntdate
+                    and skutype = :skutype
+                    and subdept = :dept
+            """)
+            with engine.begin() as conn:
+                for _, row in df_stocktake_subdept.iterrows():
+                    conn.execute(query_subdept, row.to_dict())
+
+
             return jsonify({
                 'success':  True,
                 'message':  f'อัพโหลด stocktakeid: {request.form.get("stocktakeid", "").strip()}'
