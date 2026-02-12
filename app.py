@@ -2085,6 +2085,18 @@ def upload_stk(rpname, skutype):
 
             df_stocktake_subdept = df.groupby(['bu', 'stcode', 'cntdate', 'skutype','dept'], as_index=False).agg(
                 sku=('sku', 'count'))
+            
+            query_subdept_clean_old = text(f"""
+                update stk_report_subdept
+                set {rpname} = null
+                where bu = :bu
+                    and stcode = :stcode
+                    and cntdate = :cntdate
+                    and skutype = :skutype
+            """)
+            with engine.begin() as conn:
+                conn.execute(query_subdept_clean_old, row.to_dict())
+
             query_subdept = text(f"""
                 update stk_report_subdept
                 set {rpname} = :sku
