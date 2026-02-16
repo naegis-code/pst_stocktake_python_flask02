@@ -1,6 +1,6 @@
 import csv
 from decimal import Decimal
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file, flash
+from flask import Flask,make_response, render_template, request, redirect, url_for, session, jsonify, send_file, flash
 import psycopg2
 from psycopg2 import pool
 import os
@@ -110,6 +110,8 @@ def index():
     if 'username' in session:
         return redirect(url_for('home'))
     return redirect(url_for('login'))
+
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -2118,13 +2120,6 @@ def upload_stk(rpname, skutype):
             })
         except Exception as e:
             return jsonify({'error': f'Internal server error: {str(e)}'}), 500
- 
-
-
-    
-@app.route('/api/upload_files_final/no_count', methods=['POST'])
-@login_required
-
 
 # ✅ เพิ่ม Error Handlers
 @app.errorhandler(413)
