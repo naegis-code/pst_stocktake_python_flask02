@@ -30,7 +30,7 @@ os.makedirs('stocktake_databases', exist_ok=True)
 # Database configuration from environment variables
 DB_CONFIG = {
     'user': os.environ.get('DB_USER', 'prthanapat'),
-    'host': os.environ.get('DB_HOST', '103.22.182.82'),
+    'host': os.environ.get('DB_HOST', 'upload.pst-central.com'),
     'database': os.environ.get('DB_NAME', 'pstdb4'),
     'password': os.environ.get('DB_PASSWORD', '20020015'),
     'port': int(os.environ.get('DB_PORT', 5432))
